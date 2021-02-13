@@ -3,7 +3,7 @@
 ## Mestrado Integrado em Eng. Informática na Universidade do Minho
 
 # Trabalhos:
-Instalação, monitorização e avaliaçãoexperimental da aplicação distribuída GitLab, tendo em vista automatização do processo de deployment e de benchmarking.
+Instalação, monitorização e avaliação experimental da aplicação distribuída GitLab, tendo em vista automatização do processo de deployment e de benchmarking.
 
 # Elementos:
 Todo o repositório foi realizado pelos elementos:
