@@ -1,0 +1,7 @@
+version: "3.3"
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "{{ redis_port }}:6379"
+

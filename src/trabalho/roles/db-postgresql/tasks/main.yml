@@ -1,0 +1,39 @@
+- name: Create postgresql directory
+  file:
+    path: /postgresql
+    state: directory
+    mode: '0755'
+
+- name: Copy dockerfile
+  template:
+    src: Dockerfile
+    dest: "/postgresql/Dockerfile"
+
+- name: Copy docker-compose
+  template:
+    src: docker-compose.yml.j2
+    dest: "/postgresql/docker-compose.yml"
+
+- name: Run docker
+  community.general.docker_compose:
+    project_src: /postgresql
+    build: yes
+
+- name: Pause for 20 seconds to start db service
+  pause:
+    seconds: 20
+
+- name: Create db user
+  shell: docker exec db psql -d template1 -c "CREATE USER {{ username }} CREATEDB;"
+
+- name: Set user password
+  shell: docker exec db psql -d template1 -c "ALTER USER gitlab WITH PASSWORD '{{ password  }}'"
+
+- name: Create pg_trgm extension
+  shell: docker exec db psql -d template1 -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+
+- name: Create btree_gist extension
+  shell: docker exec db psql -d template1 -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+
+- name: Create database
+  shell: docker exec db psql -d template1 -c "CREATE DATABASE {{ dbname }} OWNER {{ username }};"

@@ -1,0 +1,19 @@
+- name: Copy haproxy config
+  template:
+    src: ./haproxy.conf.j2
+    dest: /home/haproxy.conf
+
+- name: Start haproxy
+  community.general.docker_compose:
+    project_name: haproxy
+    definition:
+      services:
+        haproxy:
+          image: haproxy:latest
+          volumes:
+            - /home/haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg
+          ports:
+            - '{{ haproxy_port }}:80'
+            - '{{ haproxy_https_port }}:443'
+            - '{{ haproxy_ssh_port }}:22'
+          restart: always

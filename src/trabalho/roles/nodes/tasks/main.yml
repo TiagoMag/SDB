@@ -1,0 +1,32 @@
+- name: Install required software
+  apt:
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common']
+    state: latest
+
+- name: Add docker repo key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    id: 0EBFCD88
+    state: present
+
+- name: Add docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
+    state: present
+
+- name: Install python-pip and docker-ce
+  apt:
+    name: ['python3-pip', 'docker-ce']
+    state: latest
+
+- name: Download docker
+  get_url:
+    url: https://github.com/docker/compose/releases/download/1.27.4/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: +x
+
+- name: Downgrade jsonschema
+  command: pip3 install jsonschema==3.0.2
+
+- name: Install docker-py
+  command: pip3 install docker docker-compose

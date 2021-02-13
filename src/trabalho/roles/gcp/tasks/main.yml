@@ -1,0 +1,76 @@
+- name: Create disks
+  gcp_compute_disk:
+    name: "{{ item }}"
+    size_gb: "{{ disk_size }}"
+    source_image: "{{ source_image }}"
+    zone: "{{ gcp_zone }}"
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
+  register: disk
+  loop: "{{ disks }}"
+
+- name: Create addresses
+  gcp_compute_address:
+    name: "{{ item }}"
+    region: "{{ gcp_region }}"
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
+  register: address
+  loop: "{{ addresses }}"
+
+- name: Setup firewall rules
+  gcp_compute_firewall:
+    name: "internal-external-rules"
+    allowed:
+      - ip_protocol: tcp
+        ports: "{{ open_ports }}"
+      - ip_protocol: icmp
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
+
+- name: Create instances
+  gcp_compute_instance:
+    name: "{{ item.tag }}"
+    machine_type: "{{ gcp_machine_type }}"
+    disks:
+      - auto_delete: true
+        boot: true
+        source: "{{ disk.results[item.index - 1] }}"
+    metadata:
+      startup-script: |
+        #!/bin/bash
+        ls
+    tags:
+      items: "{{ item.tag }}"
+    network_interfaces:
+      - network: null
+        access_configs:
+        - name: External NAT
+          nat_ip: "{{ address.results[item.index - 1] }}"
+          type: ONE_TO_ONE_NAT
+    zone: "{{ gcp_zone }}"
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
+  register: instance
+  loop: "{{ instances }}"
+
+- name: Add hosts to in memory inventory
+  add_host:
+    name: "{{ item.networkInterfaces[0].accessConfigs[0].natIP }}"
+    groups: "{{ item.tags['items'] | join(',') }}"
+  loop: "{{ instance.results }}"
+
+- name: Wait for instances to respond
+  wait_for:
+    host: "{{ item }}"
+    port: 22
+    state: started
+  loop: "{{ groups['all'] }}"

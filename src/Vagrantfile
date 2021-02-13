@@ -1,0 +1,38 @@
+#-*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  PUBLIC_KEY = File.read(File.expand_path("~/.ssh/id_rsa.pub")).strip
+
+  $start_ansible = <<-SCRIPT
+    ansible-galaxy collection install community.general
+    cd /home/vagrant/trabalho
+    ansible-playbook -i inventory.gcp.yml playbook.yml --vault-password-file secret.yml
+  SCRIPT
+
+  config.vm.define "sdb1" do |sdb1|
+    sdb1.vm.network "private_network", ip: "10.0.0.101"
+  end
+
+  config.vm.box = "bento/ubuntu-20.04"
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "512"
+    vb.cpus = "1"
+  end
+
+  config.vm.provision "file", source: "ssh", destination: "/home/vagrant/.ssh"
+  config.vm.provision "file", source: "trabalho", destination: "/home/vagrant/trabalho"
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get -y update
+    apt-get -y upgrade
+    apt-get -y autoremove
+    apt-get install -y vim
+    echo "#{ PUBLIC_KEY}" >> /home/vagrant/.ssh/authorized_keys
+    chmod a-rw /home/vagrant/.ssh/id_rsa
+    chmod u+rw /home/vagrant/.ssh/id_rsa
+    apt-get -y install ansible python3-pip
+    pip3 install google-auth requests influxdb
+  SHELL
+  config.vm.provision "shell", inline: $start_ansible, privileged: false
+end

@@ -1,0 +1,40 @@
+version: "3.3"
+networks:
+  application:
+
+services:
+  app:
+    image: gitlab/gitlab-ee:latest
+    restart: always
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url "http://{{ groups['gitlab'][0] }}"
+        postgresql['enable'] = false
+        gitlab_rails['db_adapter'] = 'postgresql'
+        gitlab_rails['db_encoding'] = 'unicode'
+        gitlab_rails['db_username'] = '{{ dbusername }}'
+        gitlab_rails['db_password'] = '{{ dbpassword }}'
+        gitlab_rails['db_port'] = {{ db_port }}
+        gitlab_rails['db_host'] = "{{ hostvars[groups['database'][0]].ansible_default_ipv4.address }}"
+        redis['enable'] = false
+        gitlab_rails['redis_host'] = "{{ hostvars[groups['redis'][0]].ansible_default_ipv4.address }}"
+        gitlab_rails['redis_port'] = {{ redis_port }}
+        gitlab_rails['smtp_enable'] = true
+        gitlab_rails['smtp_address'] = 'mail'
+        gitlab_rails['smtp_port'] = 25
+        gitlab_rails['smtp_tls'] = false
+    ports:
+      - '{{ gitlab_port }}:80'
+      - '{{ gitlab_https_port }}:443'
+      - '{{ gitlab_ssh_port }}:22'
+    networks:
+      - application
+    volumes:
+      - '/gitlab/config:/etc/gitlab'
+      - '/gitlab/logs:/var/log/gitlab'
+      - '/gitlab/data:/var/opt/gitlab'
+  mail:
+    image: bytemark/smtp
+    restart: always
+    networks:
+      - application

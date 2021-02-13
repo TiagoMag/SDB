@@ -1,0 +1,124 @@
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+    - role: gcp
+      vars:
+        gcp_zone: europe-west1-b
+        gcp_region: europe-west1
+        gcp_project: sdb-grupo-5
+        gcp_cred_kind: serviceaccount
+        gcp_cred_file: credentials.json
+        gcp_machine_type: n1-standard-1
+        source_image: projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20181030
+        disk_size: 12
+        open_ports:
+          - '22'
+          - '80'
+          - '8080'
+          - '2220'
+          - '4430'
+          - '6380'
+          - '5432'
+          - '9200'
+          - '9300'
+        disks:
+          - disk-01
+          - disk-02
+          - disk-03
+          - disk-04
+          - disk-05
+          - disk-06
+        addresses:
+          - addr-01
+          - addr-02
+          - addr-03
+          - addr-04
+          - addr-05
+          - addr-06
+        instances:
+          - { index: 1, tag: gitlab }
+          - { index: 2, tag: database }
+          - { index: 3, tag: redis }
+          - { index: 4, tag: elastic }
+          - { index: 5, tag: haproxy }
+          - { index: 6, tag: gitlab2 }
+
+- hosts: all
+  become: yes
+  roles:
+    - role: nodes
+      vars:
+        payload: 'users.yml'
+
+- hosts: elastic
+  become: yes
+  roles:
+    - role: elastic
+      vars:
+        kibana_port: '80'
+
+- hosts: database
+  become: yes
+  roles:
+    - role: db-postgresql
+      vars:
+        username: 'gitlab'
+        password: !vault |
+                  $ANSIBLE_VAULT;1.1;AES256
+                  65303662613764636264306639626363663331356437666438643035306439633038356430643763
+                  3136333566326161656337653632373936393235333437320a633264386165396339363465306366
+                  31366435353034343466396232316334383638643366323630633737343337613664373133666337
+                  3632326230343135310a323831343063353137313465623537353662346163613235646265386539
+                  6466
+        dbname: 'gitlabhq_production'
+        db_port: '5432'
+    - role: metrics
+      vars:
+        elastic_host: "{{ groups['elastic'][0] }}"
+
+- hosts: redis
+  become: yes
+  roles:
+    - role: redis
+      vars:
+        redis_port: '6380'
+    - role: metrics
+      vars:
+        elastic_host: "{{ groups['elastic'][0] }}"
+
+- hosts: gitlab*
+  become: yes
+  roles:
+    - role: gitlab
+      vars:
+        dbusername: 'gitlab'
+        dbpassword: !vault |
+                  $ANSIBLE_VAULT;1.1;AES256
+                  33623666373662346464653731663433613839616631356630306363326630633036323862656564
+                  3436343134383561373639303633313235313034653561620a666437343863616364336230636330
+                  62623638623863386638633031353564343832303433363134303462323738656166303833303937
+                  3061366139613866630a383337626331353564633935326337393735336366353436306536303763
+                  6438
+        db_port: '5432'
+        redis_port: '6380'
+        gitlab_port: '8080'
+        gitlab_https_port: '4430'
+        gitlab_ssh_port: '2220'
+    - role: metrics
+      vars:
+        elastic_host: "{{ groups['elastic'][0] }}"
+
+- hosts: haproxy
+  become: yes
+  roles:
+    - role: haproxy
+      vars:
+        instances:
+          - 'gitlab'
+          - 'gitlab2'
+        gitlab_port: '8080'
+        gitlab_ssh_port: '2220'
+        haproxy_port: '8080'
+        haproxy_ssh_port: '2220'
+        haproxy_https_port: '4430'
